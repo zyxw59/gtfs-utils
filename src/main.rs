@@ -17,10 +17,14 @@ fn main() -> anyhow::Result<()> {
     let gtfs = Gtfs::new(&args.source)?;
     log_gtfs_info(&args.source, &gtfs);
 
-    let stops_by_route = merge::stops_by_route(gtfs.trips.into_values())?;
+    let stops_by_route = merge::stops_by_route(gtfs.trips.values())?;
 
     for (route, stops) in stops_by_route.map {
-        let route_name = gtfs.routes.get(&route.route_id).map(|r| &r.long_name).unwrap_or(&route.route_id);
+        let route_name = gtfs
+            .routes
+            .get(&route.route_id)
+            .map(|r| &r.long_name)
+            .unwrap_or(&route.route_id);
         println!("## {} ({:?})", route_name, route.direction);
         for stop in stops {
             println!("- {}", stop.name);

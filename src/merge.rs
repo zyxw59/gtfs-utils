@@ -6,8 +6,8 @@ use crate::{multimap::MultiMap, types::RouteDir};
 
 mod dag;
 
-pub fn stops_by_route(
-    trips: impl IntoIterator<Item = Trip>,
+pub fn stops_by_route<'a>(
+    trips: impl IntoIterator<Item = &'a Trip>,
 ) -> anyhow::Result<MultiMap<RouteDir, Arc<Stop>>> {
     // first, collect trips by route id and direction
     let trips_by_route = trips
@@ -28,14 +28,14 @@ pub fn stops_by_route(
     Ok(stops_by_route)
 }
 
-fn merge_trips(trips: Vec<Trip>) -> anyhow::Result<Vec<Arc<Stop>>> {
+fn merge_trips(trips: Vec<&Trip>) -> anyhow::Result<Vec<Arc<Stop>>> {
     use dag::{Dag, PtrKey};
     // generate dag from trips
     let mut dag = Dag::<PtrKey<Stop>, Arc<Stop>>::new();
     for trip in trips {
         let mut parent = None;
-        for st in trip.stop_times {
-            let child = st.stop;
+        for st in &trip.stop_times {
+            let child = st.stop.clone();
             dag.insert_child(parent, child.clone())?;
             parent = Some(child);
         }
