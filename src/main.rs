@@ -8,6 +8,17 @@ mod types;
 #[derive(Debug, StructOpt)]
 struct Args {
     source: String,
+    #[structopt(subcommand)]
+    command: Command,
+}
+
+#[derive(Debug, StructOpt)]
+enum Command {
+    /// Produce a summary, in markdown format, listing each route/direction pair, and all stops
+    /// served by trips on that route, in order.
+    ///
+    /// If route has multiple branches, the ordering between branches is unspecified.
+    RouteSummary,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -17,6 +28,12 @@ fn main() -> anyhow::Result<()> {
     let gtfs = Gtfs::new(&args.source)?;
     log_gtfs_info(&args.source, &gtfs);
 
+    match args.command {
+        Command::RouteSummary => route_summary(gtfs),
+    }
+}
+
+fn route_summary(gtfs: Gtfs) -> anyhow::Result<()> {
     let stops_by_route = merge::stops_by_route(gtfs.trips.values())?;
 
     for (route, stops) in stops_by_route.map {
