@@ -90,27 +90,15 @@ fn time_table(gtfs: Gtfs) -> anyhow::Result<()> {
         println!("## {}", route.format(&gtfs.routes));
         println!();
 
-        print!("—");
-        for header in table.col_headers() {
-            print!("| {}", header);
-        }
-        println!();
-
-        print!("---");
-        for _ in table.col_headers() {
-            print!("|---");
-        }
-        println!();
-
-        for (stop, row) in table.row_headers().iter().zip(table.rows()) {
-            print!("**{}**", stop.name);
-            for time in row {
-                print!(" | {}", format_time_optional(*time));
-            }
-            println!();
-        }
+        println!(
+            "{}",
+            table.formatter(
+                |trip_name| trip_name,
+                |stop| &stop.name,
+                |time| format_time_optional(*time),
+            )
+        );
     }
-
     println!();
 
     Ok(())
