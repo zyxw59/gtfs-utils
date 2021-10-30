@@ -23,7 +23,7 @@ impl BitVec {
             );
         }
         let byte = idx / BITS;
-        let rem = idx % BITS;
+        let rem = BITS - 1 - (idx % BITS);
 
         self.bytes[byte] |= 1 << rem;
     }
@@ -32,7 +32,7 @@ impl BitVec {
         let mut vec = vec![false; self.len];
         for (i, byte) in self.bytes.iter().enumerate() {
             for bit in 0..BITS {
-                if byte & (1 << bit) != 0 {
+                if byte & (1 << (BITS - 1 - bit)) != 0 {
                     vec[i * BITS + bit] = true;
                 }
             }
