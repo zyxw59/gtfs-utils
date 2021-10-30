@@ -29,6 +29,20 @@ impl<C, R, T> Table<C, R, T> {
         &mut self.data[start..end]
     }
 
+    pub fn push_column(&mut self, header: C, mut column: Vec<T>) -> anyhow::Result<()> {
+        if column.len() != self.row_headers.len() {
+            Err(anyhow::anyhow!(
+                "Incorrect size of column (got {}, expected {})",
+                column.len(),
+                self.row_headers.len()
+            ))
+        } else {
+            self.col_headers.push(header);
+            self.data.append(&mut column);
+            Ok(())
+        }
+    }
+
     pub fn col_headers(&self) -> &[C] {
         &self.col_headers
     }
@@ -51,6 +65,7 @@ impl<C, R, T> Table<C, R, T> {
         col_fmt: Cf,
         row_fmt: Rf,
         data_fmt: Tf,
+        align: Align,
     ) -> impl fmt::Display + 'a
     where
         Cf: Fn(&'a C) -> Cs + 'a,
@@ -64,6 +79,7 @@ impl<C, R, T> Table<C, R, T> {
             col_fmt,
             row_fmt,
             data_fmt,
+            align,
             table: self,
         }
     }
@@ -93,6 +109,7 @@ struct TableFormatter<'a, C, R, T, Cf, Rf, Tf> {
     col_fmt: Cf,
     row_fmt: Rf,
     data_fmt: Tf,
+    align: Align,
     table: &'a Table<C, R, T>,
 }
 
@@ -113,8 +130,9 @@ where
         writeln!(f)?;
 
         write!(f, "---")?;
+        let divider = self.align.divider();
         for _ in self.table.col_headers() {
-            write!(f, "|---")?;
+            f.write_str(divider)?;
         }
         writeln!(f)?;
 
@@ -126,5 +144,22 @@ where
             writeln!(f)?;
         }
         Ok(())
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum Align {
+    Left,
+    Center,
+    Right,
+}
+
+impl Align {
+    fn divider(self) -> &'static str {
+        match self {
+            Align::Left => "|:--",
+            Align::Center => "|:-:",
+            Align::Right => "|--:",
+        }
     }
 }

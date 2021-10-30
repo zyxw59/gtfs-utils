@@ -1,6 +1,7 @@
 use gtfs_structures::Gtfs;
 use structopt::StructOpt;
 
+mod bitvec;
 mod merge;
 mod multimap;
 mod table;
@@ -23,6 +24,9 @@ enum Command {
     /// Produce a set of tables in markdown format, one for each route/direction pair, showing all
     /// trips and their stop times at each stop on the route.
     TimeTable,
+    /// Produce a set of tables in markdown format, one for each route/direction pair, showing all
+    /// stopping patterns on the route.
+    StoppingPatterns,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -35,6 +39,7 @@ fn main() -> anyhow::Result<()> {
     match args.command {
         Command::RouteSummary => route_summary(gtfs),
         Command::TimeTable => time_table(gtfs),
+        Command::StoppingPatterns => stopping_patterns(gtfs),
     }
 }
 
@@ -54,7 +59,7 @@ fn route_summary(gtfs: Gtfs) -> anyhow::Result<()> {
 fn time_table(gtfs: Gtfs) -> anyhow::Result<()> {
     use std::{collections::BTreeMap, sync::Arc};
 
-    use crate::table::Table;
+    use crate::table::{Align, Table};
 
     let stops_by_route = merge::stops_by_route(gtfs.trips.values())?;
 
@@ -96,6 +101,69 @@ fn time_table(gtfs: Gtfs) -> anyhow::Result<()> {
                 |trip_name| trip_name,
                 |stop| &stop.name,
                 |time| format_time_optional(*time),
+                Align::Right,
+            )
+        );
+    }
+    println!();
+
+    Ok(())
+}
+
+fn stopping_patterns(gtfs: Gtfs) -> anyhow::Result<()> {
+    use std::{collections::BTreeMap, sync::Arc};
+
+    use crate::{
+        bitvec::BitVec,
+        table::{Align, Table},
+    };
+
+    let mut stops_by_route = merge::stops_by_route(gtfs.trips.values())?;
+
+    let mut patterns_by_route = BTreeMap::new();
+
+    for trip in gtfs.trips.values() {
+        let route_dir = types::RouteDir::new(trip.route_id.clone(), trip.direction_id);
+        let stops = stops_by_route
+            .map
+            .get(&route_dir)
+            .expect("missing route/dir");
+
+        let patterns = patterns_by_route
+            .entry(route_dir)
+            .or_insert_with(BTreeMap::new);
+        let mut pattern = BitVec::with_size(stops.len());
+
+        // step thru `stop.times` one at a time. since they are already sorted, we can linearly
+        // search thru `stops` for a match.
+        let mut stops = stops.iter().enumerate();
+        for stop_time in &trip.stop_times {
+            if let Some((i, _)) = stops.find(|(_, stop)| Arc::ptr_eq(stop, &stop_time.stop)) {
+                pattern.set(i);
+            }
+        }
+        *patterns.entry(pattern).or_insert(0) += 1;
+    }
+
+    for (route_dir, patterns) in patterns_by_route {
+        let stops = stops_by_route
+            .map
+            .remove(&route_dir)
+            .expect("missing route/dir");
+        let mut table = Table::new(stops);
+        for (pattern, count) in patterns {
+            table.push_column(count, pattern.to_vec())?;
+        }
+        println!("## {}", route_dir.format(&gtfs.routes));
+        println!();
+
+        println!(
+            "{}",
+            table.formatter(
+                |count| count,
+                |stop| &stop.name,
+                |&does_stop| if does_stop { "•" } else { "" },
+                Align::Center,
             )
         );
     }
