@@ -1,4 +1,4 @@
-use gtfs_structures::DirectionType;
+use gtfs_structures::{DirectionType, Route};
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord)]
 pub struct RouteDir {
@@ -12,6 +12,14 @@ impl RouteDir {
             route_id,
             direction: direction.into(),
         }
+    }
+
+    pub fn format(&self, routes: &std::collections::HashMap<String, Route>) -> String {
+        let route_name = routes
+            .get(&self.route_id)
+            .map(|r| &r.long_name)
+            .unwrap_or(&self.route_id);
+        format!("{} ({:?})", route_name, self.direction)
     }
 }
 
