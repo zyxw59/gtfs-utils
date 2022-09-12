@@ -1,5 +1,5 @@
 use gtfs_structures::Gtfs;
-use structopt::StructOpt;
+use clap::{Parser, Subcommand};
 
 mod bitvec;
 mod merge;
@@ -7,14 +7,14 @@ mod multimap;
 mod table;
 mod types;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 struct Args {
     source: String,
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     command: Command,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Subcommand)]
 enum Command {
     /// Produce a summary, in markdown format, listing each route/direction pair, and all stops
     /// served by trips on that route, in order.
@@ -30,7 +30,7 @@ enum Command {
 }
 
 fn main() -> anyhow::Result<()> {
-    let args = Args::from_args();
+    let args = Args::parse();
     pretty_env_logger::init();
 
     let gtfs = Gtfs::new(&args.source)?;

@@ -6,9 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.44"
-derivative = "2.2.0"
-gtfs-structures = { git = "https://github.com/zyxw59/gtfs-structure", branch = "error-send-sync" }
-log = "0.4.14"
-pretty_env_logger = "0.4.0"
-structopt = "0.3.25"
+anyhow = "1.0"
+derivative = "2.2"
+gtfs-structures = "0.32"
+log = "0.4"
+pretty_env_logger = "0.4"
+clap = { version = "3.2", features = ["derive"] }
