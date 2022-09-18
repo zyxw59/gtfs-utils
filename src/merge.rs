@@ -8,13 +8,14 @@ mod dag;
 
 pub fn stops_by_route<'a>(
     trips: impl IntoIterator<Item = &'a Trip>,
+    args: &crate::Args,
 ) -> anyhow::Result<MultiMap<RouteDir, Arc<Stop>>> {
     // first, collect trips by route id and direction
     let trips_by_route = trips
         .into_iter()
         .map(|trip| {
             (
-                RouteDir::new(trip.route_id.clone(), trip.direction_id),
+                RouteDir::from_trip(trip, args.direction_from_trip_name),
                 trip,
             )
         })

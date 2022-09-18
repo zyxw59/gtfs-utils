@@ -8,7 +8,7 @@ mod table;
 mod types;
 
 #[derive(Debug, Parser)]
-struct Args {
+pub struct Args {
     source: String,
     #[clap(subcommand)]
     command: Command,
@@ -18,6 +18,10 @@ struct Args {
     /// Only include routes with this `route_id`
     #[clap(long)]
     route: Option<String>,
+    /// Use `trip_short_name` to determine direction: odd-numbered trips are outbound,
+    /// even-numbered are inbound.
+    #[clap(long)]
+    direction_from_trip_name: bool,
 }
 
 #[derive(Debug, Subcommand)]
@@ -41,9 +45,9 @@ fn main() -> anyhow::Result<()> {
 
     let mut gtfs = Gtfs::new(&args.source)?;
     log_gtfs_info(&args.source, &gtfs);
-    if let Some(route_id) = args.route {
-        if let Some(route) = gtfs.routes.remove(&route_id) {
-            gtfs.routes = [(route_id, route)].into_iter().collect();
+    if let Some(route_id) = &args.route {
+        if let Some((id, route)) = gtfs.routes.remove_entry(route_id) {
+            gtfs.routes = [(id, route)].into_iter().collect();
         } else {
             anyhow::bail!("No route with id {route_id}");
         }
@@ -51,18 +55,19 @@ fn main() -> anyhow::Result<()> {
     if let Some(agency) = &args.agency {
         gtfs.routes
             .retain(|_, route| route.agency_id.as_ref() == Some(agency));
-        gtfs.trips.retain(|_, trip| gtfs.routes.contains_key(&trip.route_id));
+        gtfs.trips
+            .retain(|_, trip| gtfs.routes.contains_key(&trip.route_id));
     }
 
     match args.command {
-        Command::RouteSummary => route_summary(gtfs),
-        Command::TimeTable => time_table(gtfs),
-        Command::StoppingPatterns => stopping_patterns(gtfs),
+        Command::RouteSummary => route_summary(gtfs, &args),
+        Command::TimeTable => time_table(gtfs, &args),
+        Command::StoppingPatterns => stopping_patterns(gtfs, &args),
     }
 }
 
-fn route_summary(gtfs: Gtfs) -> anyhow::Result<()> {
-    let stops_by_route = merge::stops_by_route(gtfs.trips.values())?;
+fn route_summary(gtfs: Gtfs, args: &Args) -> anyhow::Result<()> {
+    let stops_by_route = merge::stops_by_route(gtfs.trips.values(), args)?;
 
     for (route, stops) in stops_by_route.map {
         println!("## {}", route.format(&gtfs.routes));
@@ -74,17 +79,17 @@ fn route_summary(gtfs: Gtfs) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn time_table(gtfs: Gtfs) -> anyhow::Result<()> {
+fn time_table(gtfs: Gtfs, args: &Args) -> anyhow::Result<()> {
     use std::{collections::BTreeMap, sync::Arc};
 
     use crate::table::{Align, Table};
 
-    let stops_by_route = merge::stops_by_route(gtfs.trips.values())?;
+    let stops_by_route = merge::stops_by_route(gtfs.trips.values(), args)?;
 
     let mut tables = BTreeMap::new();
 
     for trip in gtfs.trips.values() {
-        let route_dir = types::RouteDir::new(trip.route_id.clone(), trip.direction_id);
+        let route_dir = types::RouteDir::from_trip(trip, args.direction_from_trip_name);
         let stops = stops_by_route
             .map
             .get(&route_dir)
@@ -105,6 +110,9 @@ fn time_table(gtfs: Gtfs) -> anyhow::Result<()> {
         for stop_time in &trip.stop_times {
             if let Some((_, cell)) = stops.find(|(stop, _)| Arc::ptr_eq(stop, &stop_time.stop)) {
                 *cell = stop_time.arrival_time.or(stop_time.departure_time);
+            } else {
+                log::error!("couldn't find stop {}", stop_time.stop);
+                break;
             }
         }
     }
@@ -128,7 +136,7 @@ fn time_table(gtfs: Gtfs) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn stopping_patterns(gtfs: Gtfs) -> anyhow::Result<()> {
+fn stopping_patterns(gtfs: Gtfs, args: &Args) -> anyhow::Result<()> {
     use std::{collections::BTreeMap, sync::Arc};
 
     use crate::{
@@ -136,12 +144,12 @@ fn stopping_patterns(gtfs: Gtfs) -> anyhow::Result<()> {
         table::{Align, Table},
     };
 
-    let mut stops_by_route = merge::stops_by_route(gtfs.trips.values())?;
+    let mut stops_by_route = merge::stops_by_route(gtfs.trips.values(), args)?;
 
     let mut patterns_by_route = BTreeMap::new();
 
     for trip in gtfs.trips.values() {
-        let route_dir = types::RouteDir::new(trip.route_id.clone(), trip.direction_id);
+        let route_dir = types::RouteDir::from_trip(trip, args.direction_from_trip_name);
         let stops = stops_by_route
             .map
             .get(&route_dir)

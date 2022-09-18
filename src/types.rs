@@ -1,4 +1,4 @@
-use gtfs_structures::{DirectionType, Route};
+use gtfs_structures::{DirectionType, Route, Trip};
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord)]
 pub struct RouteDir {
@@ -7,10 +7,18 @@ pub struct RouteDir {
 }
 
 impl RouteDir {
-    pub fn new(route_id: String, direction: Option<DirectionType>) -> RouteDir {
+    pub fn from_trip(trip: &Trip, direction_from_trip_name: bool) -> RouteDir {
+        let direction = if direction_from_trip_name {
+            trip.trip_short_name
+                .as_ref()
+                .and_then(|name| name.parse::<u32>().ok())
+                .into()
+        } else {
+            trip.direction_id.into()
+        };
         RouteDir {
-            route_id,
-            direction: direction.into(),
+            route_id: trip.route_id.clone(),
+            direction,
         }
     }
 
@@ -36,6 +44,16 @@ impl From<Option<DirectionType>> for Direction {
             None => Direction::None,
             Some(DirectionType::Inbound) => Direction::Inbound,
             Some(DirectionType::Outbound) => Direction::Outbound,
+        }
+    }
+}
+
+impl From<Option<u32>> for Direction {
+    fn from(val: Option<u32>) -> Direction {
+        match val {
+            None => Direction::None,
+            Some(x) if x % 2 == 0 => Direction::Inbound,
+            Some(_) => Direction::Outbound,
         }
     }
 }
