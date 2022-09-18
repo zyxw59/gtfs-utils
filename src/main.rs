@@ -1,5 +1,5 @@
-use gtfs_structures::Gtfs;
 use clap::{Parser, Subcommand};
+use gtfs_structures::Gtfs;
 
 mod bitvec;
 mod merge;
@@ -12,6 +12,12 @@ struct Args {
     source: String,
     #[clap(subcommand)]
     command: Command,
+    /// Only include routes with this `agency_id`
+    #[clap(long)]
+    agency: Option<String>,
+    /// Only include routes with this `route_id`
+    #[clap(long)]
+    route: Option<String>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -33,8 +39,20 @@ fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     pretty_env_logger::init();
 
-    let gtfs = Gtfs::new(&args.source)?;
+    let mut gtfs = Gtfs::new(&args.source)?;
     log_gtfs_info(&args.source, &gtfs);
+    if let Some(route_id) = args.route {
+        if let Some(route) = gtfs.routes.remove(&route_id) {
+            gtfs.routes = [(route_id, route)].into_iter().collect();
+        } else {
+            anyhow::bail!("No route with id {route_id}");
+        }
+    }
+    if let Some(agency) = &args.agency {
+        gtfs.routes
+            .retain(|_, route| route.agency_id.as_ref() == Some(agency));
+        gtfs.trips.retain(|_, trip| gtfs.routes.contains_key(&trip.route_id));
+    }
 
     match args.command {
         Command::RouteSummary => route_summary(gtfs),

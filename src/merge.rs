@@ -23,7 +23,9 @@ pub fn stops_by_route<'a>(
     // then, merge all trips into a consolidated list of stops
     let mut stops_by_route = MultiMap::new();
     for (route, trips) in trips_by_route.map {
-        stops_by_route.insert_bulk(route, merge_trips(trips)?);
+        let trips =
+            merge_trips(trips).map_err(|err| anyhow::anyhow!("{err} in route {route:?}"))?;
+        stops_by_route.insert_bulk(route, trips);
     }
     Ok(stops_by_route)
 }
