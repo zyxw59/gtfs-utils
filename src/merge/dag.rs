@@ -1,28 +1,40 @@
 use std::{
+    cmp,
     collections::{btree_map::Entry, BTreeMap, BTreeSet},
-    ops::Deref,
+    ops,
 };
 
 use derivative::Derivative;
 
 #[derive(Derivative)]
 #[derivative(
-    Clone(bound = ""),
-    Copy(bound = ""),
     Debug = "transparent",
     PartialEq(bound = ""),
-    PartialOrd(bound = ""),
     Eq(bound = ""),
     Ord(bound = "")
 )]
 pub struct PtrKey<T>(*const T);
 
+impl<T> Copy for PtrKey<T> {}
+
+impl<T> Clone for PtrKey<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T> cmp::PartialOrd for PtrKey<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl<P, T> From<&P> for PtrKey<T>
 where
-    P: Deref<Target = T>,
+    P: ops::Deref<Target = T>,
 {
     fn from(ptr: &P) -> PtrKey<T> {
-        PtrKey(ptr.deref() as *const T)
+        PtrKey(&**ptr as *const T)
     }
 }
 
