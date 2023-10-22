@@ -11,7 +11,8 @@ use derivative::Derivative;
     Debug = "transparent",
     PartialEq(bound = ""),
     Eq(bound = ""),
-    Ord(bound = "")
+    Ord(bound = ""),
+    Hash(bound = "")
 )]
 pub struct PtrKey<T>(*const T);
 

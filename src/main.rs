@@ -4,6 +4,7 @@ use gtfs_structures::Gtfs;
 mod bitvec;
 mod merge;
 mod multimap;
+mod radius;
 mod table;
 mod types;
 
@@ -37,6 +38,9 @@ enum Command {
     /// Produce a set of tables in markdown format, one for each route/direction pair, showing all
     /// stopping patterns on the route.
     StoppingPatterns,
+    /// Produce a list, in markdown format, listing each route/direction pair, and the radius and
+    /// diameter of that route.
+    RadiusDiameter,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -63,6 +67,7 @@ fn main() -> anyhow::Result<()> {
         Command::RouteSummary => route_summary(gtfs, &args),
         Command::TimeTable => time_table(gtfs, &args),
         Command::StoppingPatterns => stopping_patterns(gtfs, &args),
+        Command::RadiusDiameter => radius_and_diameter(gtfs, &args),
     }
 }
 
@@ -194,6 +199,27 @@ fn stopping_patterns(gtfs: Gtfs, args: &Args) -> anyhow::Result<()> {
         );
     }
     println!();
+
+    Ok(())
+}
+
+fn radius_and_diameter(gtfs: Gtfs, args: &Args) -> anyhow::Result<()> {
+    let stops_by_route = merge::stops_by_route_unsorted(gtfs.trips.values(), args)?;
+
+    let rds = stops_by_route.map.into_iter().map(|(k, v)| {
+        let points = v.into_iter().filter_map(|stop| {
+            stop.longitude
+                .and_then(|long| stop.latitude.map(|lat| geo::Point::new(long, lat)))
+        }).collect::<Vec<_>>();
+        let r_d = radius::radius_and_diameter(&points);
+        (k, r_d)
+    }).collect::<Vec<_>>();
+
+    println!("Route | radius | diameter");
+    println!("--- | --- | ---");
+    for (route, (radius, diameter)) in rds {
+        println!("{} | {radius} | {diameter}", route.format(&gtfs.routes));
+    }
 
     Ok(())
 }

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use gtfs_structures::{Stop, Trip};
+use itertools::Itertools;
 
 use crate::{multimap::MultiMap, types::RouteDir};
 
@@ -27,6 +28,35 @@ pub fn stops_by_route<'a>(
         let trips =
             merge_trips(trips).map_err(|err| anyhow::anyhow!("{err} in route {route:?}"))?;
         stops_by_route.insert_bulk(route, trips);
+    }
+    Ok(stops_by_route)
+}
+
+pub fn stops_by_route_unsorted<'a>(
+    trips: impl IntoIterator<Item = &'a Trip>,
+    args: &crate::Args,
+) -> anyhow::Result<MultiMap<RouteDir, Arc<Stop>>> {
+    // first, collect trips by route id and direction
+    let trips_by_route = trips
+        .into_iter()
+        .map(|trip| {
+            (
+                RouteDir::from_trip(trip, args.direction_from_trip_name),
+                trip,
+            )
+        })
+        .collect::<MultiMap<_, _>>();
+
+    // then, merge all trips into a consolidated list of stops
+    let mut stops_by_route = MultiMap::new();
+    for (route, trips) in trips_by_route.map {
+        let stops = trips
+            .into_iter()
+            .flat_map(|trip| &trip.stop_times)
+            .map(|st| st.stop.clone())
+            .unique_by(|stop| dag::PtrKey::from(stop))
+            .collect::<Vec<_>>();
+        stops_by_route.insert_bulk(route, stops);
     }
     Ok(stops_by_route)
 }
