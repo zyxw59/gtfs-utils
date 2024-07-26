@@ -19,6 +19,9 @@ pub struct Args {
     /// Only include routes with this `route_id`
     #[clap(long)]
     route: Option<String>,
+    /// Use the `short_name` instead of `long_name` when displaying route names.
+    #[clap(long)]
+    use_short_name: bool,
     /// Use `trip_short_name` to determine direction: odd-numbered trips are outbound,
     /// even-numbered are inbound.
     #[clap(long)]
@@ -75,7 +78,7 @@ fn route_summary(gtfs: Gtfs, args: &Args) -> anyhow::Result<()> {
     let stops_by_route = merge::stops_by_route(gtfs.trips.values(), args)?;
 
     for (route, stops) in stops_by_route.map {
-        println!("## {}", route.format(&gtfs.routes));
+        println!("## {}", route.format(args.use_short_name, &gtfs.routes));
         for stop in stops {
             println!("- {}", stop.name);
         }
@@ -123,7 +126,7 @@ fn time_table(gtfs: Gtfs, args: &Args) -> anyhow::Result<()> {
     }
 
     for (route, table) in tables {
-        println!("## {}", route.format(&gtfs.routes));
+        println!("## {}", route.format(args.use_short_name, &gtfs.routes));
         println!();
 
         println!(
@@ -185,7 +188,7 @@ fn stopping_patterns(gtfs: Gtfs, args: &Args) -> anyhow::Result<()> {
         for (pattern, count) in patterns {
             table.push_column(count, pattern.to_vec())?;
         }
-        println!("## {}", route_dir.format(&gtfs.routes));
+        println!("## {}", route_dir.format(args.use_short_name, &gtfs.routes));
         println!();
 
         println!(
@@ -218,7 +221,7 @@ fn radius_and_diameter(gtfs: Gtfs, args: &Args) -> anyhow::Result<()> {
     println!("Route | radius | diameter");
     println!("--- | --- | ---");
     for (route, (radius, diameter)) in rds {
-        println!("{} | {radius} | {diameter}", route.format(&gtfs.routes));
+        println!("{} | {radius:.3} | {diameter:.3}", route.format(args.use_short_name, &gtfs.routes));
     }
 
     Ok(())

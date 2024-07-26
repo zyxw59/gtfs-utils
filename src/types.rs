@@ -22,10 +22,21 @@ impl RouteDir {
         }
     }
 
-    pub fn format(&self, routes: &std::collections::HashMap<String, Route>) -> String {
+    pub fn format(
+        &self,
+        use_short_name: bool,
+        routes: &std::collections::HashMap<String, Route>,
+    ) -> String {
         let route_name = routes
             .get(&self.route_id)
-            .map(|r| &r.long_name)
+            .map(|r| {
+                if use_short_name {
+                    &r.short_name
+                } else {
+                    &r.long_name
+                }
+            })
+            .filter(|name| !name.is_empty())
             .unwrap_or(&self.route_id);
         format!("{} ({:?})", route_name, self.direction)
     }
