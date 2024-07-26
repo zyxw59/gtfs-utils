@@ -54,6 +54,7 @@ fn main() -> anyhow::Result<()> {
     log_gtfs_info(&args.source, &gtfs);
     if let Some(route_id) = &args.route {
         if let Some((id, route)) = gtfs.routes.remove_entry(route_id) {
+            gtfs.trips.retain(|_, trip| trip.route_id == id);
             gtfs.routes = [(id, route)].into_iter().collect();
         } else {
             anyhow::bail!("No route with id {route_id}");
