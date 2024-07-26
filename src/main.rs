@@ -15,11 +15,11 @@ pub struct Args {
     source: String,
     #[clap(subcommand)]
     command: Command,
-    /// Only include routes with this `agency_id`
-    #[clap(long)]
-    agency: Option<String>,
+    /// Only include routes with specified `agency_id`s
+    #[clap(long, value_delimiter = ',')]
+    agency: Option<Vec<String>>,
     /// Only include routes with specified `route_id`s
-    #[clap(long, value_delimiter=',')]
+    #[clap(long, value_delimiter = ',')]
     route: Option<Vec<String>>,
     /// Use the `short_name` instead of `long_name` when displaying route names.
     #[clap(long)]
@@ -60,9 +60,15 @@ fn main() -> anyhow::Result<()> {
         gtfs.trips
             .retain(|_, trip| route_ids.contains(&trip.route_id));
     }
-    if let Some(agency) = &args.agency {
-        gtfs.routes
-            .retain(|_, route| route.agency_id.as_ref() == Some(agency));
+    if let Some(agency_ids) = &args.agency {
+        let agency_ids = agency_ids.iter().collect::<HashSet<_>>();
+        gtfs.routes.retain(|_, route| {
+            route
+                .agency_id
+                .as_ref()
+                .map(|id| agency_ids.contains(id))
+                .unwrap_or(false)
+        });
         gtfs.trips
             .retain(|_, trip| gtfs.routes.contains_key(&trip.route_id));
     }
