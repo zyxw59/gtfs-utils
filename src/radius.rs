@@ -1,4 +1,4 @@
-//! Calculates the radius and diameter of a set of points
+//! Calculates the radius and diameter of a set of points, in km
 //!
 //! The radius of a set of points is defined as the smallest distance such that there exists some
 //! point in the set which is no further than that distance to any point in the set.
@@ -18,8 +18,8 @@ pub fn radius_and_diameter(points: &[Point]) -> (f64, f64) {
         .flat_map(|p1| {
             points
                 .iter()
-                .map(|p2| p1.geodesic_distance(p2))
+                .map(|p2| p1.geodesic_distance(p2) / 1000.0)
                 .reduce(f64::max)
         })
-        .fold((0.0, 0.0), |(min, max), dist| (min.min(dist), max.max(dist)))
+        .fold((f64::INFINITY, 0.0), |(min, max), dist| (min.min(dist), max.max(dist)))
 }
