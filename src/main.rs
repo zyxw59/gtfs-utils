@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use clap::{Parser, Subcommand};
 use gtfs_structures::Gtfs;
 
@@ -16,9 +18,9 @@ pub struct Args {
     /// Only include routes with this `agency_id`
     #[clap(long)]
     agency: Option<String>,
-    /// Only include routes with this `route_id`
-    #[clap(long)]
-    route: Option<String>,
+    /// Only include routes with specified `route_id`s
+    #[clap(long, value_delimiter=',')]
+    route: Option<Vec<String>>,
     /// Use the `short_name` instead of `long_name` when displaying route names.
     #[clap(long)]
     use_short_name: bool,
@@ -52,13 +54,11 @@ fn main() -> anyhow::Result<()> {
 
     let mut gtfs = Gtfs::new(&args.source)?;
     log_gtfs_info(&args.source, &gtfs);
-    if let Some(route_id) = &args.route {
-        if let Some((id, route)) = gtfs.routes.remove_entry(route_id) {
-            gtfs.trips.retain(|_, trip| trip.route_id == id);
-            gtfs.routes = [(id, route)].into_iter().collect();
-        } else {
-            anyhow::bail!("No route with id {route_id}");
-        }
+    if let Some(route_ids) = &args.route {
+        let route_ids = route_ids.iter().collect::<HashSet<_>>();
+        gtfs.routes.retain(|id, _| route_ids.contains(id));
+        gtfs.trips
+            .retain(|_, trip| route_ids.contains(&trip.route_id));
     }
     if let Some(agency) = &args.agency {
         gtfs.routes
@@ -210,19 +210,29 @@ fn stopping_patterns(gtfs: Gtfs, args: &Args) -> anyhow::Result<()> {
 fn radius_and_diameter(gtfs: Gtfs, args: &Args) -> anyhow::Result<()> {
     let stops_by_route = merge::stops_by_route_unsorted(gtfs.trips.values(), args)?;
 
-    let rds = stops_by_route.map.into_iter().map(|(k, v)| {
-        let points = v.into_iter().filter_map(|stop| {
-            stop.longitude
-                .and_then(|long| stop.latitude.map(|lat| geo::Point::new(long, lat)))
-        }).collect::<Vec<_>>();
-        let r_d = radius::radius_and_diameter(&points);
-        (k, r_d)
-    }).collect::<Vec<_>>();
+    let rds = stops_by_route
+        .map
+        .into_iter()
+        .map(|(k, v)| {
+            let points = v
+                .into_iter()
+                .filter_map(|stop| {
+                    stop.longitude
+                        .and_then(|long| stop.latitude.map(|lat| geo::Point::new(long, lat)))
+                })
+                .collect::<Vec<_>>();
+            let r_d = radius::radius_and_diameter(&points);
+            (k, r_d)
+        })
+        .collect::<Vec<_>>();
 
     println!("Route | radius | diameter");
     println!("--- | --- | ---");
     for (route, (radius, diameter)) in rds {
-        println!("{} | {radius:.3} | {diameter:.3}", route.format(args.use_short_name, &gtfs.routes));
+        println!(
+            "{} | {radius:.3} | {diameter:.3}",
+            route.format(args.use_short_name, &gtfs.routes)
+        );
     }
 
     Ok(())

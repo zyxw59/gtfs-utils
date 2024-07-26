@@ -21,5 +21,7 @@ pub fn radius_and_diameter(points: &[Point]) -> (f64, f64) {
                 .map(|p2| p1.geodesic_distance(p2) / 1000.0)
                 .reduce(f64::max)
         })
-        .fold((f64::INFINITY, 0.0), |(min, max), dist| (min.min(dist), max.max(dist)))
+        .fold((f64::INFINITY, 0.0), |(min, max), dist| {
+            (min.min(dist), max.max(dist))
+        })
 }
