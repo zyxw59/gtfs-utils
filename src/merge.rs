@@ -16,7 +16,7 @@ pub fn stops_by_route<'a>(
         .into_iter()
         .map(|trip| {
             (
-                RouteDir::from_trip(trip, args.direction_from_trip_name),
+                RouteDir::from_trip(trip, args),
                 trip,
             )
         })
@@ -41,7 +41,7 @@ pub fn stops_by_route_unsorted<'a>(
         .into_iter()
         .map(|trip| {
             (
-                RouteDir::from_trip(trip, args.direction_from_trip_name),
+                RouteDir::from_trip(trip, args),
                 trip,
             )
         })

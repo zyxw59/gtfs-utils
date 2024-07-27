@@ -28,6 +28,9 @@ pub struct Args {
     /// even-numbered are inbound.
     #[clap(long)]
     direction_from_trip_name: bool,
+    /// Combine trips from all selected routes as if they were a single route.
+    #[clap(long)]
+    merge_routes: bool,
 }
 
 #[derive(Debug, Subcommand)]
@@ -104,7 +107,7 @@ fn time_table(gtfs: Gtfs, args: &Args) -> anyhow::Result<()> {
     let mut tables = BTreeMap::new();
 
     for trip in gtfs.trips.values() {
-        let route_dir = types::RouteDir::from_trip(trip, args.direction_from_trip_name);
+        let route_dir = types::RouteDir::from_trip(trip, args);
         let stops = stops_by_route
             .map
             .get(&route_dir)
@@ -164,7 +167,7 @@ fn stopping_patterns(gtfs: Gtfs, args: &Args) -> anyhow::Result<()> {
     let mut patterns_by_route = BTreeMap::new();
 
     for trip in gtfs.trips.values() {
-        let route_dir = types::RouteDir::from_trip(trip, args.direction_from_trip_name);
+        let route_dir = types::RouteDir::from_trip(trip, args);
         let stops = stops_by_route
             .map
             .get(&route_dir)
